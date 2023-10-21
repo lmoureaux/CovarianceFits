@@ -171,4 +171,4 @@ PyYaml = "*"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.13"
-content-hash = "759ba6930a4be40c0dcc2dcc5d12301b0752ab9ff27298b20e8654b2778eaff3"
+content-hash = "8ce8cfe26ba43efc1fa282c266d3f46aa1f7536b9f780275469b420f1a9557b3"
