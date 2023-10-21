@@ -8,6 +8,7 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = ">=3.10,<3.13"
 numpy = "^1.26.1"
+yoda = "^0.1.5"
 
 
 [build-system]
