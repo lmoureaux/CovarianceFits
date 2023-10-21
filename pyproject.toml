@@ -12,6 +12,12 @@ yoda = "^0.1.5"
 pyyaml = "^6.0.1"
 
 
+[tool.poetry.group.dev.dependencies]
+black = "^23.10.0"
+
+[tool.poetry.scripts]
+data2numpy = "covariancefits.conversion:data2numpy"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
