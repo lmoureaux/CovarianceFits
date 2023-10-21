@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "covariancefits"
 version = "0.1.0"
-description = ""
+description = "Python-based tools to perform chi-squared fits to particle physics measurements while taking the covariance matrices of the data into account."
 authors = ["Louis Moureaux"]
 readme = "README.md"
 
