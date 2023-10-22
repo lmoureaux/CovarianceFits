@@ -1,4 +1,6 @@
 import argparse
+import itertools as it
+import sys
 import numpy as np
 import yaml
 
@@ -68,3 +70,90 @@ def data2numpy():
         covs = load_covariances(yaml.safe_load(stream))
 
     np.savez(args.output, bins=bins, data=data, covs=covs)
+
+
+def get_mc_errors(objects, base_name):
+    """
+    Loads the muR and muF scale uncertainties from YODA objects for the given
+    histogram. Adds the MC stat uncertainties. Returns them as a dict of covariance matrices.
+    """
+
+    hist = objects[base_name]
+    central = hist.heights()
+    stat_err = hist.yErrs()
+
+    systs = []
+    for mur, muf in it.product([0.5, 1, 2], [0.5, 1, 2]):
+        if mur == 1 / muf:
+            continue
+        suffix = f"[MUR{mur:.1f}_MUF{muf:.1f}]"
+        systs.append(objects[base_name + suffix].heights() - central)
+
+    envelope = np.max(np.abs(systs - central), axis=0)
+    return {
+        "MC_scale": np.outer(envelope, envelope),
+        "MC_stat": np.diag(stat_err**2),
+    }
+
+
+def yoda2numpy():
+    """
+    Entry point to turn a measurement to a cached Numpy file.
+    """
+
+    # https://gitlab.com/hepcedar/yoda/-/issues/77
+    try:
+        import yoda
+    except ImportError as e:
+        print("Could not import yoda. Make sure it is installed on your system.")
+        print("Please see https://yoda.hepforge.org/ for more information.")
+        print("Error message:", e)
+        sys.exit(1)
+
+    parser = argparse.ArgumentParser(
+        description="Caches the contents of a 1D histogram for fast lookup.",
+        epilog="""
+            This program takes a file YODA format containing the output of a
+            Rivet routine. It extracts one histogram and turns it into a single
+            NumPy .npz file. Scale variations are optionally included as fully
+            correlated uncertainties.""",
+    )
+    parser.add_argument("yoda", help="The input YODA file")
+    parser.add_argument(
+        "name", help="Name of the histogram to load (/ROUTINE/histogram)"
+    )
+    parser.add_argument("output", help="Location of the output file")
+    parser.add_argument(
+        "--scale-unc",
+        default=False,
+        action="store_true",
+        help="Use scale uncertainties",
+    )
+    args = parser.parse_args()
+
+    with open(args.yoda) as stream:
+        objects = yoda.read(stream)
+
+    if not args.name in objects:
+        print(f"Could not find object {args.name} in file {args.yoda}")
+        print("Available objects with similar names:")
+        print()
+        keys = list(filter(lambda key: args.name in key, objects.keys()))
+        for key in keys:
+            print(f"\t{key}")
+        print()
+        sys.exit(1)
+
+    hist = objects[args.name]
+    if not isinstance(hist, yoda.Histo1D):
+        print(
+            f"Unexpected object type for {args.name}: {type(hist).__name__} (expected Histo1D)"
+        )
+        sys.exit(1)
+
+    np.savez(
+        args.output,
+        bins=hist.xEdges(),
+        data=hist.heights(),
+        covs=get_mc_errors(objects, args.name),
+    )

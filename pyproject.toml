@@ -16,6 +16,7 @@ black = "^23.10.0"
 
 [tool.poetry.scripts]
 data2numpy = "covariancefits.conversion:data2numpy"
+yoda2numpy = "covariancefits.conversion:yoda2numpy"
 
 [build-system]
 requires = ["poetry-core"]
