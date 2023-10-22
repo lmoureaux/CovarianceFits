@@ -1,8 +1,10 @@
 # Fits with covariance matrices
 
-This repository contains Python-based tools to perform chi-squared fits to
+This package contains Python-based tools to perform chi-squared fits to
 particle physics measurements while taking the covariance matrices of the data
-into account.
+into account. Currently it supports performing the chi-squared test with 1D
+histograms as inputs and merging histograms to performe a simultaneous test of
+multiple distributions.
 
 ## Installation
 
