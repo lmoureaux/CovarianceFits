@@ -72,7 +72,7 @@ def data2numpy():
     np.savez(args.output, bins=bins, data=data, covs=covs)
 
 
-def get_mc_errors(objects, base_name):
+def get_mc_errors(objects, base_name, scales=False):
     """
     Loads the muR and muF scale uncertainties from YODA objects for the given
     histogram. Adds the MC stat uncertainties. Returns them as a dict of covariance matrices.
@@ -82,18 +82,20 @@ def get_mc_errors(objects, base_name):
     central = hist.heights()
     stat_err = hist.yErrs()
 
-    systs = []
-    for mur, muf in it.product([0.5, 1, 2], [0.5, 1, 2]):
-        if mur == 1 / muf:
-            continue
-        suffix = f"[MUR{mur:.1f}_MUF{muf:.1f}]"
-        systs.append(objects[base_name + suffix].heights() - central)
+    errors = {"MC_stat": np.diag(stat_err**2)}
 
-    envelope = np.max(np.abs(systs - central), axis=0)
-    return {
-        "MC_scale": np.outer(envelope, envelope),
-        "MC_stat": np.diag(stat_err**2),
-    }
+    if scales:
+        variations = []
+        for mur, muf in it.product([0.5, 1, 2], [0.5, 1, 2]):
+            if mur == 1 / muf:
+                continue
+            suffix = f"[MUR{mur:.1f}_MUF{muf:.1f}]"
+            variations.append(objects[base_name + suffix].heights())
+
+        envelope = np.max(np.abs(variations - central), axis=0)
+        errors["MC_scale"] = np.outer(envelope, envelope)
+
+    return errors
 
 
 def yoda2numpy():
@@ -155,5 +157,5 @@ def yoda2numpy():
         args.output,
         bins=hist.xEdges(),
         data=hist.heights(),
-        covs=get_mc_errors(objects, args.name),
+        covs=get_mc_errors(objects, args.name, scales=args.scale_unc),
     )
