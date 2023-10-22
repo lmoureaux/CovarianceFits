@@ -4,6 +4,33 @@ This repository contains Python-based tools to perform chi-squared fits to
 particle physics measurements while taking the covariance matrices of the data
 into account.
 
+## Installation
+
+You will need `git` and Python >= 3.10 installed, as well as `virtualenv` and
+`pip`. In addition, the [YODA](https://yoda.hepforge.org/) Python bindings are
+needed to import YODA files. If you have access to CERN's `cvmfs`, any recent
+LCG environment can be used. They can be activated by sourcing the script at
+`/cvmfs/sft.cern.ch/lcg/views/LCG_<version>/<platform>`.
+
+1. Clone the repository:
+   ```
+   git clone https://github.com/lmoureaux/CovarianceFits.git
+   ```
+1. Create a Python virtualenv and activate it:
+   ```
+   virtualenv venv
+   source venv/bin/activate
+   ```
+1. Install dependencies:
+   ```
+   python -m pip install CovarianceFits
+   ```
+
+That's it! All commands are now available for use. To enable your environment
+again after reconnecting, just do `source venv/bin/activate`.
+
+## Usage
+
 ### Data import
 
 All tools work on special (very simple) files, each containing a single
