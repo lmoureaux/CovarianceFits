@@ -1,5 +1,6 @@
 import argparse
 import itertools as it
+import pickle
 import sys
 import numpy as np
 import yaml
@@ -54,7 +55,7 @@ def data2numpy():
             This program takes two files in HepData YAML format: the first one
             (data) with the measured values, and the second (covs) with the
             covariance matrix of the measurement. It turns them into a single
-            NumPy .npz file that is much faster to load.""",
+            Pickle .pkl file that is much faster to load.""",
     )
     parser.add_argument("data", help="The input HepData file with the measured values")
     parser.add_argument(
@@ -69,7 +70,8 @@ def data2numpy():
     with open(args.covs) as stream:
         covs = load_covariances(yaml.safe_load(stream))
 
-    np.savez(args.output, bins=bins, data=data, covs=covs)
+    with open(args.output, "wb") as stream:
+        pickle.dump({"bins": bins, "data": data, "covs": covs}, stream)
 
 
 def get_mc_errors(objects, base_name, scales=False):
@@ -117,7 +119,7 @@ def yoda2numpy():
         epilog="""
             This program takes a file YODA format containing the output of a
             Rivet routine. It extracts one histogram and turns it into a single
-            NumPy .npz file. Scale variations are optionally included as fully
+            Pickle .pkl file. Scale variations are optionally included as fully
             correlated uncertainties.""",
     )
     parser.add_argument("yoda", help="The input YODA file")
@@ -153,9 +155,12 @@ def yoda2numpy():
         )
         sys.exit(1)
 
-    np.savez(
-        args.output,
-        bins=hist.xEdges(),
-        data=hist.heights(),
-        covs=get_mc_errors(objects, args.name, scales=args.scale_unc),
-    )
+    with open(args.output, "wb") as stream:
+        pickle.dump(
+            {
+                "bins": hist.xEdges(),
+                "data": hist.heights(),
+                "covs": get_mc_errors(objects, args.name, scales=args.scale_unc),
+            },
+            stream,
+        )
