@@ -44,7 +44,7 @@ def load_covariances(yaml_data):
     return covariances
 
 
-def data2numpy():
+def data2pkl():
     """
     Entry point to turn a measurement to a cached Numpy file.
     """
@@ -100,7 +100,7 @@ def get_mc_errors(objects, base_name, scales=False):
     return errors
 
 
-def yoda2numpy():
+def yoda2pkl():
     """
     Entry point to turn a measurement to a cached Numpy file.
     """
