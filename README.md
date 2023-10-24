@@ -25,7 +25,7 @@ LCG environment can be used. They can be activated by sourcing the script at
    ```
 1. Install dependencies:
    ```
-   python -m pip install CovarianceFits
+   python -m pip install ./CovarianceFits
    ```
 
 That's it! All commands are now available for use. To enable your environment
