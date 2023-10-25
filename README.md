@@ -68,7 +68,7 @@ restricting the considered range with `--first-bin` and `--last-bin`.
 
 Basic usage:
 ```
-chi2 data-histogram pred-histogram.pkl --first-bin 0 --last-bin 2
+chi2 data-histogram.pkl pred-histogram.pkl --first-bin 0 --last-bin 2
 ```
 This will calculate the chi2 using the first 3 bins (0 to 2 inclusive). Negative
 values are supported for `--last-bin` and works as usual in Python.
