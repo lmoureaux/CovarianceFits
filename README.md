@@ -75,9 +75,11 @@ values are supported for `--last-bin` and works as usual in Python.
 
 ### Conbined chi2
 
-A combined chi2 with multiple histograms is similar to a the normal case, except
-that the histograms need to be merged first. The tool for this is called
-**`merge-histograms`**. It takes the following inputs:
+It is possible to obtain a chi2 value taking into account bins from multiple
+histograms, which we refer to as a "combined" chi2. This combined chi2 is
+similar to a the normal case, except that the histograms need to be merged
+first. The tool for this is called **`merge-histograms`**. It takes the
+following inputs:
 
 * A list of histogram files to merge
 * Bin ranges to include in the merged output
