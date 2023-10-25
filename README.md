@@ -11,7 +11,8 @@ multiple distributions.
 You will need `git` and Python >= 3.9 installed, as well as `virtualenv` and
 `pip`. In addition, the [YODA](https://yoda.hepforge.org/) Python bindings are
 needed to import YODA files. If you have access to CERN's `cvmfs`, any recent
-LCG environment can be used. They can be activated by sourcing the script at
+LCG environment can be used (LCG 104 is known to work). They can be activated by
+sourcing the script at
 `/cvmfs/sft.cern.ch/lcg/views/LCG_<version>/<platform>`.
 
 1. Clone the repository:
