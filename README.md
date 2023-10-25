@@ -24,7 +24,7 @@ sourcing the script at
    virtualenv venv
    source venv/bin/activate
    ```
-1. Install dependencies:
+1. Install everything needed:
    ```
    python -m pip install ./CovarianceFits
    ```
