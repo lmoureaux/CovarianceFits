@@ -110,3 +110,17 @@ Each file contains a dictionary with the following keys:
 * `covs`: A Python dictionary. Each item is a source of uncertainty. The name is
   the uncertainty and the value is a 2D Numpy array encoding the uncertainty as
   a covariance matrix.
+
+## Credits
+
+Originally written by [Louis Moureaux](https://orcid.org/0000-0002-2310-9266)
+based on discussions with [Laurent Favart](https://www.iihe.ac.be/~lfavart/) and
+[Sara Taheri Monfared](https://orcid.org/0000-0003-2988-7859). Thorough testing
+and useful suggestions by Itana Bubanja.
+
+This work is part of a project that has received funding from the European
+Union's Horizon 2020 research and innovation programme under grant agreement
+STRONG 2020 - No 824093.
+LM acknowledges the support of the Deutsche Forschungsgemeinschaft (DFG, German
+Research Foundation) under Germany’s Excellence Strategy – EXC 2121 “Quantum
+Universe” – 390833306.
