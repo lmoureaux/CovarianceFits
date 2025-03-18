@@ -81,8 +81,8 @@ def get_mc_errors(objects, base_name, scales=False):
     """
 
     hist = objects[base_name]
-    central = hist.heights()
-    stat_err = hist.yErrs()
+    central = np.array([b.sumW() for b in hist.bins()])
+    stat_err = np.array([b.errW() for b in hist.bins()])
 
     errors = {"MC_stat": np.diag(stat_err**2)}
 
@@ -92,7 +92,7 @@ def get_mc_errors(objects, base_name, scales=False):
             if mur == 1 / muf:
                 continue
             suffix = f"[MUR{mur:.1f}_MUF{muf:.1f}]"
-            variations.append(objects[base_name + suffix].heights())
+            variations.append([b.sumW() for b in objects[base_name + suffix].bins()])
 
         envelope = np.max(np.abs(variations - central), axis=0)
         errors["MC_scale"] = np.outer(envelope, envelope)
@@ -159,7 +159,7 @@ def yoda2pkl():
         pickle.dump(
             {
                 "bins": hist.xEdges(),
-                "data": hist.heights(),
+                "data": [b.sumW() for b in hist.bins()],
                 "covs": get_mc_errors(objects, args.name, scales=args.scale_unc),
             },
             stream,
