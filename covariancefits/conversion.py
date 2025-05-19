@@ -81,8 +81,8 @@ def get_mc_errors(objects, base_name, scales=False):
     """
 
     hist = objects[base_name]
-    central = np.array([b.sumW() for b in hist.bins()])
-    stat_err = np.array([b.errW() for b in hist.bins()])
+    central = np.array([b.sumW() for b in hist.bins()]) / np.diff(hist.xEdges())
+    stat_err = np.array([b.errW() for b in hist.bins()]) / np.diff(hist.xEdges())
 
     errors = {"MC_stat": np.diag(stat_err**2)}
 
@@ -159,7 +159,7 @@ def yoda2pkl():
         pickle.dump(
             {
                 "bins": hist.xEdges(),
-                "data": [b.sumW() for b in hist.bins()],
+                "data": [b.sumW() for b in hist.bins()] / np.diff(hist.xEdges()),
                 "covs": get_mc_errors(objects, args.name, scales=args.scale_unc),
             },
             stream,
