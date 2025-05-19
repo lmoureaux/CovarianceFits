@@ -50,6 +50,12 @@ def chi2tool():
         type=int,
         help="Last bin index to consider (starting from 0)",
     )
+    parser.add_argument(
+        "--naive",
+        default=False,
+        action='store_true',
+        help="Perform a naive calculation without taking correlations into account",
+    )
     args = parser.parse_args()
 
     with open(args.input[0], "rb") as stream:
@@ -61,6 +67,9 @@ def chi2tool():
 
     dx = x1["data"] - x2["data"]
     cov = np.sum(list(x1["covs"].values()) + list(x2["covs"].values()), axis=0)
+    if args.naive:
+        cov = np.diag(np.diag(cov))  # Remove off-diagonal elements
+
     print(f"Loaded histograms with {len(dx)} bins")
     print(f"Found {len(x1['covs'])} plus {len(x2['covs'])} covariance matrices")
 
