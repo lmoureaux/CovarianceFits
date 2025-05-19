@@ -74,7 +74,7 @@ def data2pkl():
         pickle.dump({"bins": bins, "data": data, "covs": covs}, stream)
 
 
-def get_mc_errors(objects, base_name, scales=False):
+def get_mc_errors(objects, base_name, scales=False, scales_mode="max"):
     """
     Loads the muR and muF scale uncertainties from YODA objects for the given
     histogram. Adds the MC stat uncertainties. Returns them as a dict of covariance matrices.
@@ -94,8 +94,19 @@ def get_mc_errors(objects, base_name, scales=False):
             suffix = f"[MUR{mur:.1f}_MUF{muf:.1f}]"
             variations.append([b.sumW() for b in objects[base_name + suffix].bins()])
 
-        envelope = np.max(np.abs(variations - central), axis=0)
-        errors["MC_scale"] = np.outer(envelope, envelope)
+        variations /= np.diff(hist.xEdges())
+
+        up = np.max(variations, axis=0) - central
+        down = np.min(variations, axis=0) - central
+
+        if scales_mode == "max":
+            unc = np.max(np.abs([up, down]), axis=0)
+        elif scales_mode == "mean":
+            unc = np.mean(np.abs([up, down]), axis=0)
+        else:
+            raise ValueError(f'Unsupported scales mode {scales_mode}')
+
+        errors["MC_scale"] = np.outer(unc, unc)
 
     return errors
 
@@ -133,6 +144,12 @@ def yoda2pkl():
         action="store_true",
         help="Use scale uncertainties",
     )
+    parser.add_argument(
+        "--scale-unc-symmetrization",
+        default="max",
+        choices=["max", "mean"],
+        help="How to symmetrize the up and down variations of scale uncertainties",
+    )
     args = parser.parse_args()
 
     with open(args.yoda) as stream:
@@ -160,7 +177,8 @@ def yoda2pkl():
             {
                 "bins": hist.xEdges(),
                 "data": [b.sumW() for b in hist.bins()] / np.diff(hist.xEdges()),
-                "covs": get_mc_errors(objects, args.name, scales=args.scale_unc),
+                "covs": get_mc_errors(objects, args.name, scales=args.scale_unc,
+                                      scales_mode=args.scale_unc_symmetrization),
             },
             stream,
         )
