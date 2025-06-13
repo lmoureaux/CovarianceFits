@@ -82,15 +82,12 @@ def load_lhcb_data(table_17, figure_13, table_22, figure_15):
 
     # Load the independent variable - the bin edges. We only return pT.
     ivals = table_17["independent_variables"][0]["values"]
-    bins = [ivals[i]["low"] for i in range(len(ivals))]
-    bins.append(ivals[-1]["high"])
 
     # Load the dependent variables - the bin contents and some uncertainties
     data = []
     lumi = []
     stat = []
     for depvar in table_17["dependent_variables"]:
-        print(depvar["values"][0]["errors"])
         data.append([val["value"] for val in depvar["values"]])
         lumi.append([val["errors"][2]["symerror"] for val in depvar["values"]])
         stat.append([val["errors"][0]["symerror"] for val in depvar["values"]])
@@ -133,9 +130,7 @@ def load_lhcb_data(table_17, figure_13, table_22, figure_15):
         # ...then multiply with the correlation coefficient
         covs["eff"][i1 - 1][i2 - 1] *= c
 
-    print(covs.keys())
-
-    return np.array(bins), data, covs
+    return data, covs
 
 
 def lhcb2pkl():
@@ -159,7 +154,7 @@ def lhcb2pkl():
     ).open() as figure_15, (
         args.folder / "table_22.yaml"
     ).open() as table_22:
-        bins, data, covs = load_lhcb_data(
+        data, covs = load_lhcb_data(
             yaml.safe_load(table_17),
             yaml.safe_load(figure_13),
             yaml.safe_load(table_22),
@@ -167,18 +162,42 @@ def lhcb2pkl():
         )
 
     with open(args.output, "wb") as stream:
-        pickle.dump({"bins": bins, "data": data, "covs": covs}, stream)
+        pickle.dump({"bins": None, "data": data, "covs": covs}, stream)
 
 
-def get_mc_errors(objects, base_name, scales=False, scales_mode="max"):
+def get_histogram_contents(objects, names, suffix="", func="sumW") -> np.ndarray:
+    """
+    Concatenates bin contents from a set of histograms.
+    """
+
+    import yoda
+
+    all_values = []
+    for name in names:
+        full_name = name + suffix
+        if not full_name in objects:
+            raise ValueError(f"No {full_name} object in YODA file")
+
+        hist = objects[full_name]
+        if not isinstance(hist, yoda.Histo1D):
+            raise ValueError(
+                f"Unexpected object type for {full_name}: {type(hist).__name__} (expected Histo1D)"
+            )
+
+        hist_values = [getattr(b, func)() for b in hist.bins()]
+        all_values += list(hist_values / np.diff(hist.xEdges()))
+
+    return np.array(all_values)
+
+
+def get_mc_errors(objects, base_names, scales=False, scales_mode="max"):
     """
     Loads the muR and muF scale uncertainties from YODA objects for the given
     histogram. Adds the MC stat uncertainties. Returns them as a dict of covariance matrices.
     """
 
-    hist = objects[base_name]
-    central = np.array([b.sumW() for b in hist.bins()]) / np.diff(hist.xEdges())
-    stat_err = np.array([b.errW() for b in hist.bins()]) / np.diff(hist.xEdges())
+    central = get_histogram_contents(objects, base_names)
+    stat_err = get_histogram_contents(objects, base_names, func="errW")
 
     errors = {"MC_stat": np.diag(stat_err**2)}
 
@@ -188,9 +207,7 @@ def get_mc_errors(objects, base_name, scales=False, scales_mode="max"):
             if mur == 1 / muf:
                 continue
             suffix = f"[MUR{mur:.1f}_MUF{muf:.1f}]"
-            variations.append([b.sumW() for b in objects[base_name + suffix].bins()])
-
-        variations /= np.diff(hist.xEdges())
+            variations.append(get_histogram_contents(objects, [n + suffix for n in base_names]))
 
         up = np.max(variations, axis=0) - central
         down = np.min(variations, axis=0) - central
@@ -231,7 +248,7 @@ def yoda2pkl():
     )
     parser.add_argument("yoda", help="The input YODA file")
     parser.add_argument(
-        "name", help="Name of the histogram to load (/ROUTINE/histogram)"
+        "names", nargs="+", help="Name of the histograms to load (/ROUTINE/histogram). Multiple histograms are concatenated."
     )
     parser.add_argument("output", help="Location of the output file")
     parser.add_argument(
@@ -251,31 +268,14 @@ def yoda2pkl():
     with open(args.yoda) as stream:
         objects = yoda.read(stream)
 
-    if not args.name in objects:
-        print(f"Could not find object {args.name} in file {args.yoda}")
-        print("Available objects with similar names:")
-        print()
-        keys = list(filter(lambda key: args.name in key, objects.keys()))
-        for key in keys:
-            print(f"\t{key}")
-        print()
-        sys.exit(1)
-
-    hist = objects[args.name]
-    if not isinstance(hist, yoda.Histo1D):
-        print(
-            f"Unexpected object type for {args.name}: {type(hist).__name__} (expected Histo1D)"
-        )
-        sys.exit(1)
-
     with open(args.output, "wb") as stream:
         pickle.dump(
             {
-                "bins": hist.xEdges(),
-                "data": [b.sumW() for b in hist.bins()] / np.diff(hist.xEdges()),
+                "bins": None,
+                "data": get_histogram_contents(objects, args.names),
                 "covs": get_mc_errors(
                     objects,
-                    args.name,
+                    args.names,
                     scales=args.scale_unc,
                     scales_mode=args.scale_unc_symmetrization,
                 ),

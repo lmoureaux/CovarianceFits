@@ -63,7 +63,7 @@ def chi2tool():
     with open(args.input[1], "rb") as stream:
         x2 = pickle.load(stream)
 
-    assert (x1["bins"] == x2["bins"]).all(), "Binnings do not match"
+    assert np.all(x1["bins"] == x2["bins"]), "Binnings do not match"
 
     dx = x1["data"] - x2["data"]
     cov = np.sum(list(x1["covs"].values()) + list(x2["covs"].values()), axis=0)
