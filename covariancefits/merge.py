@@ -4,6 +4,7 @@ import pickle
 import re
 import scipy.linalg
 
+
 def select_bins(x, covs, first_bin=0, last_bin=-1):
     """
     Selects the bins to use. Returns x and covs with only the needed values.
@@ -34,12 +35,23 @@ def mergetool():
     )
     parser.add_argument("files", metavar="file", nargs="+", help="Input files")
     parser.add_argument("-o", "--output", required=True, help="Output file")
-    parser.add_argument("--ranges", metavar="range", nargs="+", help="Bins to use, as first:last for each input file")
-    parser.add_argument("--uncorrelated", nargs="*", help="List of uncorrelated uncertainties (between mass bins). Regular expressions are supported")
+    parser.add_argument(
+        "--ranges",
+        metavar="range",
+        nargs="+",
+        help="Bins to use, as first:last for each input file",
+    )
+    parser.add_argument(
+        "--uncorrelated",
+        nargs="*",
+        help="List of uncorrelated uncertainties (between mass bins). Regular expressions are supported",
+    )
     args = parser.parse_args()
 
     if args.ranges:
-        assert len(args.files) == len(args.ranges), "Different number of files and ranges"
+        assert len(args.files) == len(
+            args.ranges
+        ), "Different number of files and ranges"
     else:
         args.ranges = ["0:-1" for _ in args.files]
 

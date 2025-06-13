@@ -53,7 +53,7 @@ def chi2tool():
     parser.add_argument(
         "--naive",
         default=False,
-        action='store_true',
+        action="store_true",
         help="Perform a naive calculation without taking correlations into account",
     )
     args = parser.parse_args()
