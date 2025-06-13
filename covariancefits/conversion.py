@@ -4,6 +4,7 @@ import pickle
 import sys
 import numpy as np
 import yaml
+from pathlib import Path
 
 
 def load_data(yaml_data):
@@ -74,6 +75,101 @@ def data2pkl():
         pickle.dump({"bins": bins, "data": data, "covs": covs}, stream)
 
 
+def load_lhcb_data(table_17, figure_13, table_22, figure_15):
+    """
+    Turns HepData YAML data to bin edges and bin contents (LHCb 13 TeV measurement).
+    """
+
+    # Load the independent variable - the bin edges. We only return pT.
+    ivals = table_17["independent_variables"][0]["values"]
+    bins = [ivals[i]["low"] for i in range(len(ivals))]
+    bins.append(ivals[-1]["high"])
+
+    # Load the dependent variables - the bin contents and some uncertainties
+    data = []
+    lumi = []
+    stat = []
+    for depvar in table_17["dependent_variables"]:
+        print(depvar["values"][0]["errors"])
+        data.append([val["value"] for val in depvar["values"]])
+        lumi.append([val["errors"][2]["symerror"] for val in depvar["values"]])
+        stat.append([val["errors"][0]["symerror"] for val in depvar["values"]])
+
+    data = np.array(data).flatten()
+    lumi = np.array(lumi).flatten()
+    stat = np.array(stat).flatten()
+
+    # Now create some covariance matrices
+    covs = {}
+    covs["lumi"] = np.outer(lumi, lumi)  # We assume full correlation
+
+    # Stat correlation matrix is in Figure 13 (left)
+    # It is encoded according to "bin numbers", which are in the same order as
+    # our bin indices.
+    id1 = [v["value"] for v in figure_13["independent_variables"][0]["values"]]
+    id2 = [v["value"] for v in figure_13["independent_variables"][1]["values"]]
+    corr = [v["value"] for v in figure_13["dependent_variables"][0]["values"]]
+
+    cov = np.outer(stat, stat)  # start with full correlation...
+    for i1, i2, c in zip(id1, id2, corr):
+        # ...then multiply with the correlation coefficient
+        cov[i1 - 1][i2 - 1] *= c
+    covs["stat"] = cov
+
+    # Now let's add other systematics. They come in the same order as our table.
+    # Full correlation.
+    for depvar in table_22["dependent_variables"]:
+        name = depvar["header"]["name"].replace("(%)", "").lower()
+        unc = data * np.array([v["value"] for v in depvar["values"]]) / 100
+        covs[name] = np.outer(unc, unc)
+
+    # One last plot twist: the efficiency uncertainty isn't fully correlated.
+    # Load this from the Figure 15 (left) which contains the correlation matrix.
+    # Same logic as for the data.
+    id1 = [v["value"] for v in figure_15["independent_variables"][0]["values"]]
+    id2 = [v["value"] for v in figure_15["independent_variables"][1]["values"]]
+    corr = [v["value"] for v in figure_15["dependent_variables"][0]["values"]]
+    for i1, i2, c in zip(id1, id2, corr):
+        # ...then multiply with the correlation coefficient
+        covs["eff"][i1 - 1][i2 - 1] *= c
+
+    print(covs.keys())
+
+    return np.array(bins), data, covs
+
+
+def lhcb2pkl():
+    """
+    Entry point to turn the LHCb measurement to a cached Pickle file.
+    """
+
+    parser = argparse.ArgumentParser(
+        description="Imports data from https://www.hepdata.net/record/ins1990313 v2",
+    )
+    parser.add_argument(
+        "folder", type=Path, help="The folder with upacked HepData files"
+    )
+    parser.add_argument("output", help="Location of the output file")
+    args = parser.parse_args()
+
+    with (args.folder / "table_17.yaml").open() as table_17, (
+        args.folder / "figure_13_(left).yaml"
+    ).open() as figure_13, (
+        args.folder / "figure_15_(left).yaml"
+    ).open() as figure_15, (
+        args.folder / "table_22.yaml"
+    ).open() as table_22:
+        bins, data, covs = load_lhcb_data(
+            yaml.safe_load(table_17),
+            yaml.safe_load(figure_13),
+            yaml.safe_load(table_22),
+            yaml.safe_load(figure_15),
+        )
+
+    with open(args.output, "wb") as stream:
+        pickle.dump({"bins": bins, "data": data, "covs": covs}, stream)
+
+
 def get_mc_errors(objects, base_name, scales=False, scales_mode="max"):
     """
     Loads the muR and muF scale uncertainties from YODA objects for the given
@@ -104,7 +200,7 @@ def get_mc_errors(objects, base_name, scales=False, scales_mode="max"):
         elif scales_mode == "mean":
             unc = np.mean(np.abs([up, down]), axis=0)
         else:
-            raise ValueError(f'Unsupported scales mode {scales_mode}')
+            raise ValueError(f"Unsupported scales mode {scales_mode}")
 
         errors["MC_scale"] = np.outer(unc, unc)
 
@@ -177,8 +273,12 @@ def yoda2pkl():
             {
                 "bins": hist.xEdges(),
                 "data": [b.sumW() for b in hist.bins()] / np.diff(hist.xEdges()),
-                "covs": get_mc_errors(objects, args.name, scales=args.scale_unc,
-                                      scales_mode=args.scale_unc_symmetrization),
+                "covs": get_mc_errors(
+                    objects,
+                    args.name,
+                    scales=args.scale_unc,
+                    scales_mode=args.scale_unc_symmetrization,
+                ),
             },
             stream,
         )

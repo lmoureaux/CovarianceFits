@@ -19,6 +19,7 @@ black = "^23.10.0"
 chi2 = "covariancefits.chi2:chi2tool"
 merge-histograms = "covariancefits.merge:mergetool"
 data2pkl = "covariancefits.conversion:data2pkl"
+lhcb2pkl = "covariancefits.conversion:lhcb2pkl"
 yoda2pkl = "covariancefits.conversion:yoda2pkl"
 
 [build-system]
