@@ -165,15 +165,24 @@ def lhcb2pkl():
         pickle.dump({"bins": None, "data": data, "covs": covs}, stream)
 
 
-def get_histogram_contents(objects, names, suffix="", func="sumW") -> np.ndarray:
+def get_histogram_contents(
+    objects, names, rescale=[1], suffix="", func="sumW"
+) -> np.ndarray:
     """
     Concatenates bin contents from a set of histograms.
     """
 
     import yoda
 
+    if len(rescale) == 1:
+        rescale *= len(names)
+    elif len(rescale) != len(names):
+        raise ValueError(
+            f"Different number of histogram names ({len(names)}) and rescale factors ({len(rescale)})"
+        )
+
     all_values = []
-    for name in names:
+    for name, scale in zip(names, rescale):
         full_name = name + suffix
         if not full_name in objects:
             raise ValueError(f"No {full_name} object in YODA file")
@@ -184,20 +193,20 @@ def get_histogram_contents(objects, names, suffix="", func="sumW") -> np.ndarray
                 f"Unexpected object type for {full_name}: {type(hist).__name__} (expected Histo1D)"
             )
 
-        hist_values = [getattr(b, func)() for b in hist.bins()]
+        hist_values = [scale * getattr(b, func)() for b in hist.bins()]
         all_values += list(hist_values / np.diff(hist.xEdges()))
 
     return np.array(all_values)
 
 
-def get_mc_errors(objects, base_names, rescale=1, scales=False, scales_mode="max"):
+def get_mc_errors(objects, base_names, rescale=[1], scales=False, scales_mode="max"):
     """
     Loads the muR and muF scale uncertainties from YODA objects for the given
     histogram. Adds the MC stat uncertainties. Returns them as a dict of covariance matrices.
     """
 
-    central = rescale * get_histogram_contents(objects, base_names)
-    stat_err = rescale * get_histogram_contents(objects, base_names, func="errW")
+    central = get_histogram_contents(objects, base_names, rescale=rescale)
+    stat_err = get_histogram_contents(objects, base_names, rescale=rescale, func="errW")
 
     errors = {"MC_stat": np.diag(stat_err**2)}
 
@@ -208,8 +217,9 @@ def get_mc_errors(objects, base_names, rescale=1, scales=False, scales_mode="max
                 continue
             suffix = f"[MUR{mur:.1f}_MUF{muf:.1f}]"
             variations.append(
-                rescale
-                * get_histogram_contents(objects, [n + suffix for n in base_names])
+                get_histogram_contents(
+                    objects, [n + suffix for n in base_names], rescale=rescale
+                )
             )
 
         up = np.max(variations, axis=0) - central
@@ -258,9 +268,10 @@ def yoda2pkl():
     parser.add_argument("output", help="Location of the output file")
     parser.add_argument(
         "--rescale",
-        default=1,
+        default=[1],
         type=float,
-        help="Multiply the cross section by this factor",
+        nargs="+",
+        help="Multiply the cross sections by these factors (one number, or one per input histograms)",
     )
     parser.add_argument(
         "--scale-unc",
@@ -283,7 +294,9 @@ def yoda2pkl():
         pickle.dump(
             {
                 "bins": None,
-                "data": args.rescale * get_histogram_contents(objects, args.names),
+                "data": get_histogram_contents(
+                    objects, args.names, rescale=args.rescale
+                ),
                 "covs": get_mc_errors(
                     objects,
                     args.names,

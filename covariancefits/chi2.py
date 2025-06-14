@@ -77,7 +77,6 @@ def chi2tool():
         last_bin = len(dx) + last_bin if last_bin < 0 else last_bin
         bins = list(range(args.first_bin, last_bin))
 
-
     assert np.all(x1["bins"] == x2["bins"]), "Binnings do not match"
 
     # print((x1["data"] / x2["data"]).reshape(5, -1))
