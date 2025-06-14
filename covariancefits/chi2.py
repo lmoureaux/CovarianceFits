@@ -1,4 +1,5 @@
 import argparse
+import sys
 import numpy as np
 import pickle
 
@@ -13,16 +14,12 @@ def chi2(dx, cov):
     return dx @ np.linalg.lstsq(cov, dx, rcond=None)[0]
 
 
-def select_bins(dx, cov, first_bin=0, last_bin=-1):
+def select_bins(dx, cov, bins):
     """
-    Selects the bins to use. Returns dx and cov with only the needed values, and
-    the used range().
+    Selects the bins to use. Returns dx and cov with only the needed values.
     """
 
-    last_bin = len(dx) + last_bin if last_bin < 0 else last_bin
-    bins = range(first_bin, last_bin + 1)
-
-    return dx[bins], cov[bins].T[bins].T, bins
+    return dx[bins], cov[bins].T[bins].T
 
 
 def chi2tool():
@@ -51,6 +48,13 @@ def chi2tool():
         help="Last bin index to consider (starting from 0)",
     )
     parser.add_argument(
+        "--bins",
+        default=None,
+        type=int,
+        nargs="+",
+        help="List of bin indices to consider",
+    )
+    parser.add_argument(
         "--naive",
         default=False,
         action="store_true",
@@ -63,8 +67,20 @@ def chi2tool():
     with open(args.input[1], "rb") as stream:
         x2 = pickle.load(stream)
 
+    if args.bins is not None:
+        if args.first_bin > 0 or args.last_bin >= 0:
+            print("Cannot use --bins and --first-bin/--last-bin at the same time")
+            sys.exit(1)
+
+        bins = args.bins
+    else:
+        last_bin = len(dx) + last_bin if last_bin < 0 else last_bin
+        bins = list(range(args.first_bin, last_bin))
+
+
     assert np.all(x1["bins"] == x2["bins"]), "Binnings do not match"
 
+    # print((x1["data"] / x2["data"]).reshape(5, -1))
     dx = x1["data"] - x2["data"]
     cov = np.sum(list(x1["covs"].values()) + list(x2["covs"].values()), axis=0)
     if args.naive:
@@ -73,9 +89,9 @@ def chi2tool():
     print(f"Loaded histograms with {len(dx)} bins")
     print(f"Found {len(x1['covs'])} plus {len(x2['covs'])} covariance matrices")
 
-    dx, cov, bins = select_bins(dx, cov, args.first_bin, args.last_bin)
+    dx, cov = select_bins(dx, cov, bins)
     print()
-    print(f"Calculating chi2 for bins {bins.start}:{bins.stop} ({len(dx)} bins)")
+    print(f"Calculating chi2 for {len(dx)} bins ({", ".join(map(str, bins))})")
 
     c2 = chi2(dx, cov)
 
