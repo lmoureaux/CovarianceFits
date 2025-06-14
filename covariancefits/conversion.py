@@ -190,14 +190,14 @@ def get_histogram_contents(objects, names, suffix="", func="sumW") -> np.ndarray
     return np.array(all_values)
 
 
-def get_mc_errors(objects, base_names, scales=False, scales_mode="max"):
+def get_mc_errors(objects, base_names, rescale=1, scales=False, scales_mode="max"):
     """
     Loads the muR and muF scale uncertainties from YODA objects for the given
     histogram. Adds the MC stat uncertainties. Returns them as a dict of covariance matrices.
     """
 
-    central = get_histogram_contents(objects, base_names)
-    stat_err = get_histogram_contents(objects, base_names, func="errW")
+    central = rescale * get_histogram_contents(objects, base_names)
+    stat_err = rescale * get_histogram_contents(objects, base_names, func="errW")
 
     errors = {"MC_stat": np.diag(stat_err**2)}
 
@@ -207,7 +207,10 @@ def get_mc_errors(objects, base_names, scales=False, scales_mode="max"):
             if mur == 1 / muf:
                 continue
             suffix = f"[MUR{mur:.1f}_MUF{muf:.1f}]"
-            variations.append(get_histogram_contents(objects, [n + suffix for n in base_names]))
+            variations.append(
+                rescale
+                * get_histogram_contents(objects, [n + suffix for n in base_names])
+            )
 
         up = np.max(variations, axis=0) - central
         down = np.min(variations, axis=0) - central
@@ -248,9 +251,17 @@ def yoda2pkl():
     )
     parser.add_argument("yoda", help="The input YODA file")
     parser.add_argument(
-        "names", nargs="+", help="Name of the histograms to load (/ROUTINE/histogram). Multiple histograms are concatenated."
+        "names",
+        nargs="+",
+        help="Name of the histograms to load (/ROUTINE/histogram). Multiple histograms are concatenated.",
     )
     parser.add_argument("output", help="Location of the output file")
+    parser.add_argument(
+        "--rescale",
+        default=1,
+        type=float,
+        help="Multiply the cross section by this factor",
+    )
     parser.add_argument(
         "--scale-unc",
         default=False,
@@ -272,10 +283,11 @@ def yoda2pkl():
         pickle.dump(
             {
                 "bins": None,
-                "data": get_histogram_contents(objects, args.names),
+                "data": args.rescale * get_histogram_contents(objects, args.names),
                 "covs": get_mc_errors(
                     objects,
                     args.names,
+                    rescale=args.rescale,
                     scales=args.scale_unc,
                     scales_mode=args.scale_unc_symmetrization,
                 ),
