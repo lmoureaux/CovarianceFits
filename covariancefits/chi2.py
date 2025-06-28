@@ -28,6 +28,14 @@ def _get_bins(args, max_count: int) -> list[int]:
     return list(range(args.first_bin, last_bin))
 
 
+def total_covariance(covs):
+    """
+    Calculates the total covariance matrix.
+    """
+
+    return np.sum(list(covs.values()), axis=0)
+
+
 def select_bins(x, bins):
     """
     Selects the bins to use in the input array (works with any number of
@@ -89,7 +97,7 @@ def chi2tool():
     assert np.all(x1["bins"] == x2["bins"]), "Binnings do not match"
 
     dx = x1["data"] - x2["data"]
-    cov = np.sum(list(x1["covs"].values()) + list(x2["covs"].values()), axis=0)
+    cov = total_covariance(x1["covs"]) + total_covariance(x2["covs"])
     if args.naive:
         cov = np.diag(np.diag(cov))  # Remove off-diagonal elements
 
