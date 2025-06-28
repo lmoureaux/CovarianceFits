@@ -96,18 +96,18 @@ def chi2tool():
 
     assert np.all(x1["bins"] == x2["bins"]), "Binnings do not match"
 
-    dx = x1["data"] - x2["data"]
-    cov = total_covariance(x1["covs"]) + total_covariance(x2["covs"])
+    print(f"Loaded histograms with {len(x1['data'])} bins")
+    print(f"Found {len(x1['covs'])} plus {len(x2['covs'])} covariance matrices")
+    print(f"Calculating chi2 for {len(bins)} bins ({", ".join(map(str, bins))})")
+    print()
+
+    x1, cov1 = select_bins(x1["data"], bins), select_bins(total_covariance(x1["covs"]), bins)
+    x2, cov2 = select_bins(x2["data"], bins), select_bins(total_covariance(x2["covs"]), bins)
+
+    dx = x1 - x2
+    cov = cov1 + cov2
     if args.naive:
         cov = np.diag(np.diag(cov))  # Remove off-diagonal elements
-
-    print(f"Loaded histograms with {len(dx)} bins")
-    print(f"Found {len(x1['covs'])} plus {len(x2['covs'])} covariance matrices")
-
-    dx = select_bins(dx, bins)
-    cov = select_bins(cov, bins)
-    print()
-    print(f"Calculating chi2 for {len(dx)} bins ({", ".join(map(str, bins))})")
 
     c2 = chi2(dx, cov)
 
