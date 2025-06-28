@@ -78,7 +78,15 @@ def data2pkl():
 def load_lhcb_data(table_17, figure_13, table_22, figure_15):
     """
     Turns HepData YAML data to bin edges and bin contents (LHCb 13 TeV measurement).
+
+    Source: https://www.hepdata.net/record/ins1990313
     """
+
+    # Load the independent variable - the bin edges
+    ivals = table_17["independent_variables"][0]["values"]
+    bins = [ivals[i]["low"] for i in range(len(ivals))]
+    bins.append(ivals[-1]["high"])
+    bin_widths = np.diff(bins)
 
     # Load the independent variable - the bin edges. We only return pT.
     ivals = table_17["independent_variables"][0]["values"]
@@ -88,9 +96,9 @@ def load_lhcb_data(table_17, figure_13, table_22, figure_15):
     lumi = []
     stat = []
     for depvar in table_17["dependent_variables"]:
-        data.append([val["value"] for val in depvar["values"]])
-        lumi.append([val["errors"][2]["symerror"] for val in depvar["values"]])
-        stat.append([val["errors"][0]["symerror"] for val in depvar["values"]])
+        data.append(bin_widths * [val["value"] for val in depvar["values"]])
+        lumi.append(bin_widths * [val["errors"][2]["symerror"] for val in depvar["values"]])
+        stat.append(bin_widths * [val["errors"][0]["symerror"] for val in depvar["values"]])
 
     data = np.array(data).flatten()
     lumi = np.array(lumi).flatten()
@@ -193,8 +201,7 @@ def get_histogram_contents(
                 f"Unexpected object type for {full_name}: {type(hist).__name__} (expected Histo1D)"
             )
 
-        hist_values = [scale * getattr(b, func)() for b in hist.bins()]
-        all_values += list(hist_values / np.diff(hist.xEdges()))
+        all_values += [scale * getattr(b, func)() for b in hist.bins()]
 
     return np.array(all_values)
 
