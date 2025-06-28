@@ -14,6 +14,20 @@ def chi2(dx, cov):
     return dx @ np.linalg.lstsq(cov, dx, rcond=None)[0]
 
 
+def _get_bins(args, max_count: int) -> list[int]:
+    """
+    Returns the list of bins to use.
+    """
+
+    if args.bins is not None:
+        if args.first_bin > 0 or args.last_bin >= 0:
+            raise ValueError("Cannot use --bins and --first-bin/--last-bin at the same time")
+        return args.bins
+
+    last_bin = len(dx) + last_bin if last_bin < 0 else last_bin
+    return list(range(args.first_bin, last_bin))
+
+
 def select_bins(x, bins):
     """
     Selects the bins to use in the input array (works with any number of
@@ -70,15 +84,7 @@ def chi2tool():
     with open(args.input[1], "rb") as stream:
         x2 = pickle.load(stream)
 
-    if args.bins is not None:
-        if args.first_bin > 0 or args.last_bin >= 0:
-            print("Cannot use --bins and --first-bin/--last-bin at the same time")
-            sys.exit(1)
-
-        bins = args.bins
-    else:
-        last_bin = len(dx) + last_bin if last_bin < 0 else last_bin
-        bins = list(range(args.first_bin, last_bin))
+    bins = _get_bins(args, len(x1))
 
     assert np.all(x1["bins"] == x2["bins"]), "Binnings do not match"
 
