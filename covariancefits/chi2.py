@@ -80,6 +80,11 @@ def chi2tool():
         help="List of bin indices to consider",
     )
     parser.add_argument(
+        "--shape-only",
+        default=False,
+        action="store_true",
+        help="Normalizes the second argument to the sum of the first. This removes one degree of freedom.",)
+    parser.add_argument(
         "--naive",
         default=False,
         action="store_true",
@@ -103,6 +108,13 @@ def chi2tool():
 
     x1, cov1 = select_bins(x1["data"], bins), select_bins(total_covariance(x1["covs"]), bins)
     x2, cov2 = select_bins(x2["data"], bins), select_bins(total_covariance(x2["covs"]), bins)
+    ndof = len(x1)
+
+    if args.shape_only:
+        factor = np.sum(x1) / np.sum(x2)
+        x2 *= factor
+        cov2 *= factor**2
+        ndof -= 1
 
     dx = x1 - x2
     cov = cov1 + cov2
@@ -112,5 +124,5 @@ def chi2tool():
     c2 = chi2(dx, cov)
 
     print(f"chi2:      {c2:.2f}")
-    print(f"ndof:      {len(dx)}")
-    print(f"chi2/ndof: {c2 / len(dx):.2f}")
+    print(f"ndof:      {ndof}")
+    print(f"chi2/ndof: {c2 / ndof:.2f}")
