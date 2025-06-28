@@ -14,12 +14,15 @@ def chi2(dx, cov):
     return dx @ np.linalg.lstsq(cov, dx, rcond=None)[0]
 
 
-def select_bins(dx, cov, bins):
+def select_bins(x, bins):
     """
-    Selects the bins to use. Returns dx and cov with only the needed values.
+    Selects the bins to use in the input array (works with any number of
+    dimensions).
     """
 
-    return dx[bins], cov[bins].T[bins].T
+    for i in range(len(x.shape)):
+        x = np.take(x, bins, axis=i)
+    return x
 
 
 def chi2tool():
@@ -79,7 +82,6 @@ def chi2tool():
 
     assert np.all(x1["bins"] == x2["bins"]), "Binnings do not match"
 
-    # print((x1["data"] / x2["data"]).reshape(5, -1))
     dx = x1["data"] - x2["data"]
     cov = np.sum(list(x1["covs"].values()) + list(x2["covs"].values()), axis=0)
     if args.naive:
@@ -88,7 +90,8 @@ def chi2tool():
     print(f"Loaded histograms with {len(dx)} bins")
     print(f"Found {len(x1['covs'])} plus {len(x2['covs'])} covariance matrices")
 
-    dx, cov = select_bins(dx, cov, bins)
+    dx = select_bins(dx, bins)
+    cov = select_bins(cov, bins)
     print()
     print(f"Calculating chi2 for {len(dx)} bins ({", ".join(map(str, bins))})")
 
