@@ -2,6 +2,7 @@ import argparse
 import sys
 import numpy as np
 import pickle
+from scipy import stats
 
 
 def chi2(dx, cov):
@@ -21,7 +22,9 @@ def _get_bins(args, max_count: int) -> list[int]:
 
     if args.bins is not None:
         if args.first_bin > 0 or args.last_bin >= 0:
-            raise ValueError("Cannot use --bins and --first-bin/--last-bin at the same time")
+            raise ValueError(
+                "Cannot use --bins and --first-bin/--last-bin at the same time"
+            )
         return args.bins
 
     last_bin = len(dx) + last_bin if last_bin < 0 else last_bin
@@ -83,7 +86,8 @@ def chi2tool():
         "--shape-only",
         default=False,
         action="store_true",
-        help="Normalizes the second argument to the sum of the first. This removes one degree of freedom.",)
+        help="Normalizes the second argument to the sum of the first. This removes one degree of freedom.",
+    )
     parser.add_argument(
         "--naive",
         default=False,
@@ -104,14 +108,19 @@ def chi2tool():
     print(f"Loaded histograms with {len(x1['data'])} bins")
     print(f"Found {len(x1['covs'])} plus {len(x2['covs'])} covariance matrices")
     print(f"Calculating chi2 for {len(bins)} bins ({", ".join(map(str, bins))})")
-    print()
 
-    x1, cov1 = select_bins(x1["data"], bins), select_bins(total_covariance(x1["covs"]), bins)
-    x2, cov2 = select_bins(x2["data"], bins), select_bins(total_covariance(x2["covs"]), bins)
+    x1, cov1 = select_bins(x1["data"], bins), select_bins(
+        total_covariance(x1["covs"]), bins
+    )
+    x2, cov2 = select_bins(x2["data"], bins), select_bins(
+        total_covariance(x2["covs"]), bins
+    )
     ndof = len(x1)
 
     if args.shape_only:
+        # This approach works surprisingly well despite not taking uncs into account.
         factor = np.sum(x1) / np.sum(x2)
+        print(f"Scaling {args.input[1]} by {factor:.3f}.")
         x2 *= factor
         cov2 *= factor**2
         ndof -= 1
@@ -122,7 +131,10 @@ def chi2tool():
         cov = np.diag(np.diag(cov))  # Remove off-diagonal elements
 
     c2 = chi2(dx, cov)
+    pval = 1 - stats.chi2.cdf(c2, ndof)
 
+    print()
     print(f"chi2:      {c2:.2f}")
     print(f"ndof:      {ndof}")
     print(f"chi2/ndof: {c2 / ndof:.2f}")
+    print(f"p-value:   {pval:.3f}")
