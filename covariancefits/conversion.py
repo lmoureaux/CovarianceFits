@@ -80,6 +80,17 @@ def load_lhcb_data(table_17, figure_13, table_22, figure_15):
     Turns HepData YAML data to bin edges and bin contents (LHCb 13 TeV measurement).
 
     Source: https://www.hepdata.net/record/ins1990313
+
+    Note about FSR corrections
+    --------------------------
+
+    The paper mentions that the cross sections are corrected to Born level. This correction
+    is huge: up to 10% in the first pT bins. Tables in HepData match tables in the paper, so
+    we have to assume that HepData also has the FSR correction. The HepData entry does NOT
+    contain the 2D correction factors. However, they seem to be ~flat in y.
+
+    On the other hand, the Rivet routine dresses muons using the cone algorithm, using a
+    DeltaR cone with radius 0.1. How close this is to Born level is unknown.
     """
 
     # Load the independent variable - the bin edges
