@@ -66,9 +66,9 @@ def data2pkl():
     parser.add_argument("output", help="Location of the output file")
     args = parser.parse_args()
 
-    with open(args.data) as stream:
+    with open(args.data, encoding="utf-8") as stream:
         bins, data = load_data(yaml.safe_load(stream))
-    with open(args.covs) as stream:
+    with open(args.covs, encoding="utf-8") as stream:
         covs = load_covariances(yaml.safe_load(stream))
 
     with open(args.output, "wb") as stream:
@@ -97,8 +97,12 @@ def load_lhcb_data(table_17, figure_13, table_22, figure_15):
     stat = []
     for depvar in table_17["dependent_variables"]:
         data.append(bin_widths * [val["value"] for val in depvar["values"]])
-        lumi.append(bin_widths * [val["errors"][2]["symerror"] for val in depvar["values"]])
-        stat.append(bin_widths * [val["errors"][0]["symerror"] for val in depvar["values"]])
+        lumi.append(
+            bin_widths * [val["errors"][2]["symerror"] for val in depvar["values"]]
+        )
+        stat.append(
+            bin_widths * [val["errors"][0]["symerror"] for val in depvar["values"]]
+        )
 
     data = np.array(data).flatten()
     lumi = np.array(lumi).flatten()
@@ -153,21 +157,35 @@ def lhcb2pkl():
         "folder", type=Path, help="The folder with upacked HepData files"
     )
     parser.add_argument("output", help="Location of the output file")
+    dims = parser.add_mutually_exclusive_group(required=True)
+    dims.add_argument(
+        "--1d", dest="pt", action="store_true", help="Use 1D pT measurement"
+    )
+    dims.add_argument(
+        "--2d", dest="ypt", action="store_true", help="Use 2D y-pT measurement"
+    )
     args = parser.parse_args()
 
-    with (args.folder / "table_17.yaml").open() as table_17, (
-        args.folder / "figure_13_(left).yaml"
-    ).open() as figure_13, (
-        args.folder / "figure_15_(left).yaml"
-    ).open() as figure_15, (
-        args.folder / "table_22.yaml"
-    ).open() as table_22:
+    def load_yaml(name):
+        with (args.folder / name).open(encoding="utf-8") as stream:
+            return yaml.safe_load(stream)
+
+    if args.pt:
         data, covs = load_lhcb_data(
-            yaml.safe_load(table_17),
-            yaml.safe_load(figure_13),
-            yaml.safe_load(table_22),
-            yaml.safe_load(figure_15),
+            load_yaml("table_15.yaml"),
+            load_yaml("table_8.yaml"),
+            load_yaml("table_20.yaml"),
+            load_yaml("table_11.yaml"),
         )
+    elif args.ypt:
+        data, covs = load_lhcb_data(
+            load_yaml("table_17.yaml"),
+            load_yaml("figure_13_(left).yaml"),
+            load_yaml("table_22.yaml"),
+            load_yaml("figure_15_(left).yaml"),
+        )
+    else:
+        raise ValueError("Not implemented")
 
     with open(args.output, "wb") as stream:
         pickle.dump({"bins": None, "data": data, "covs": covs}, stream)
@@ -294,7 +312,7 @@ def yoda2pkl():
     )
     args = parser.parse_args()
 
-    with open(args.yoda) as stream:
+    with open(args.yoda, encoding="utf-8") as stream:
         objects = yoda.read(stream)
 
     with open(args.output, "wb") as stream:
