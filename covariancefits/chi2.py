@@ -27,7 +27,7 @@ def _get_bins(args, max_count: int) -> list[int]:
             )
         return args.bins
 
-    last_bin = len(dx) + last_bin if last_bin < 0 else last_bin
+    last_bin = max_count + args.last_bin if args.last_bin < 0 else args.last_bin
     return list(range(args.first_bin, last_bin))
 
 
@@ -101,7 +101,7 @@ def chi2tool():
     with open(args.input[1], "rb") as stream:
         x2 = pickle.load(stream)
 
-    bins = _get_bins(args, len(x1))
+    bins = _get_bins(args, len(x1["data"]))
 
     assert np.all(x1["bins"] == x2["bins"]), "Binnings do not match"
 
