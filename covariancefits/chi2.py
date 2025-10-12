@@ -50,19 +50,11 @@ def select_bins(x, bins):
     return x
 
 
-def chi2tool():
+def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
     """
-    Entry point to calculate the chi2 between two files for the same distribution.
+    Adds chi2 configuration arguments to the parser.
     """
 
-    parser = argparse.ArgumentParser(
-        description="Computes a chi2 between two distributions.",
-        epilog="""
-            This program takes two files in Pickle .pkl format created by
-            data2numpy or yoda2numpy and computes the chi2 between the two
-            histograms.""",
-    )
-    parser.add_argument("input", nargs=2, help="Input files")
     parser.add_argument(
         "--first-bin",
         default=0,
@@ -94,6 +86,22 @@ def chi2tool():
         action="store_true",
         help="Perform a naive calculation without taking correlations into account",
     )
+
+
+def chi2tool():
+    """
+    Entry point to calculate the chi2 between two files for the same distribution.
+    """
+
+    parser = argparse.ArgumentParser(
+        description="Computes a chi2 between two distributions.",
+        epilog="""
+            This program takes two files in Pickle .pkl format created by
+            data2numpy or yoda2numpy and computes the chi2 between the two
+            histograms.""",
+    )
+    parser.add_argument("input", nargs=2, help="Input files")
+    _add_common_arguments(parser)
     args = parser.parse_args()
 
     with open(args.input[0], "rb") as stream:
