@@ -175,3 +175,34 @@ def chi2tool():
     print(f"ndof:      {result.ndof}")
     print(f"chi2/ndof: {result.chi2 / result.ndof:.2f}")
     print(f"p-value:   {result.pval:.3f}")
+
+
+def chi2scan():
+    """
+    Helper for chi2 scans across multiple hypotheses.
+    """
+
+    parser = argparse.ArgumentParser(
+        description="Scans the chi2 across multiple prediction files.",
+        epilog="""
+            This program is equivalent to applying the chi2 command between the
+            data and each prediction separately. It prints the results to stdout
+            in csv format.""",
+    )
+    parser.add_argument("data", help="Input data file")
+    parser.add_argument("predictions", nargs="+", help="Input predictions")
+    _add_common_arguments(parser)
+    args = parser.parse_args()
+
+    with open(args.data, "rb") as stream:
+        x1 = pickle.load(stream)
+
+    print(f"file,chi2,ndof,chi2,pval")
+    for pred in args.predictions:
+        with open(pred, "rb") as stream:
+            x2 = pickle.load(stream)
+
+        result = _chi2_with_args(x1, x2, args)
+        print(
+            f"{pred},{result.chi2},{result.ndof},{result.chi2 / result.ndof},{result.pval}"
+        )

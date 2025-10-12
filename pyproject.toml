@@ -17,6 +17,7 @@ black = "^23.10.0"
 
 [tool.poetry.scripts]
 chi2 = "covariancefits.chi2:chi2tool"
+chi2scan = "covariancefits.chi2:chi2scan"
 merge-histograms = "covariancefits.merge:mergetool"
 data2pkl = "covariancefits.conversion:data2pkl"
 lhcb2pkl = "covariancefits.conversion:lhcb2pkl"
