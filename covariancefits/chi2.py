@@ -1,7 +1,10 @@
 import argparse
-import sys
-import numpy as np
 import pickle
+import sys
+from dataclasses import dataclass
+from typing import Optional
+
+import numpy as np
 from scipy import stats
 
 
@@ -88,6 +91,54 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
     )
 
 
+@dataclass
+class Chi2Result:
+    chi2: float = 0.0
+    ndof: int = 0
+    pval: float = np.nan
+    dx: Optional[np.ndarray] = None
+    cov: Optional[np.ndarray] = None
+    bins: Optional[list[int]] = None
+    kfactor: float = np.nan
+
+
+def _chi2_with_args(x1, x2, args) -> Chi2Result:
+    """
+    Compute the chi2 between x1 and x2, taking command-line arguments from
+    _add_common_arguments() into account.
+    """
+
+    result = Chi2Result()
+    result.bins = _get_bins(args, len(x1["data"]))
+
+    assert np.all(x1["bins"] == x2["bins"]), "Binnings do not match"
+
+    x1, cov1 = select_bins(x1["data"], result.bins), select_bins(
+        total_covariance(x1["covs"]), result.bins
+    )
+    x2, cov2 = select_bins(x2["data"], result.bins), select_bins(
+        total_covariance(x2["covs"]), result.bins
+    )
+    result.ndof = len(x1)
+
+    if args.shape_only:
+        # This approach works surprisingly well despite not taking uncs into account.
+        result.kfactor = np.sum(x1) / np.sum(x2)
+        x2 *= result.kfactor
+        cov2 *= result.kfactor**2
+        result.ndof -= 1
+
+    result.dx = x1 - x2
+    result.cov = cov1 + cov2
+    if args.naive:
+        result.cov = np.diag(np.diag(result.cov))  # Remove off-diagonal elements
+
+    result.chi2 = chi2(result.dx, result.cov)
+    result.pval = stats.chi2.sf(result.chi2, result.ndof)
+
+    return result
+
+
 def chi2tool():
     """
     Entry point to calculate the chi2 between two files for the same distribution.
@@ -109,40 +160,18 @@ def chi2tool():
     with open(args.input[1], "rb") as stream:
         x2 = pickle.load(stream)
 
-    bins = _get_bins(args, len(x1["data"]))
-
-    assert np.all(x1["bins"] == x2["bins"]), "Binnings do not match"
-
     print(f"Loaded histograms with {len(x1['data'])} bins")
     print(f"Found {len(x1['covs'])} plus {len(x2['covs'])} covariance matrices")
-    print(f"Calculating chi2 for {len(bins)} bins ({", ".join(map(str, bins))})")
 
-    x1, cov1 = select_bins(x1["data"], bins), select_bins(
-        total_covariance(x1["covs"]), bins
-    )
-    x2, cov2 = select_bins(x2["data"], bins), select_bins(
-        total_covariance(x2["covs"]), bins
-    )
-    ndof = len(x1)
+    result = _chi2_with_args(x1, x2, args)
+    bins = ", ".join(map(str, result.bins))
+    print(f"Calculating chi2 for {len(result.bins)} bins ({bins})")
 
     if args.shape_only:
-        # This approach works surprisingly well despite not taking uncs into account.
-        factor = np.sum(x1) / np.sum(x2)
-        print(f"Scaling {args.input[1]} by {factor:.3f}.")
-        x2 *= factor
-        cov2 *= factor**2
-        ndof -= 1
-
-    dx = x1 - x2
-    cov = cov1 + cov2
-    if args.naive:
-        cov = np.diag(np.diag(cov))  # Remove off-diagonal elements
-
-    c2 = chi2(dx, cov)
-    pval = 1 - stats.chi2.cdf(c2, ndof)
+        print(f"Scaling {args.input[1]} by {result.kfactor:.3f}.")
 
     print()
-    print(f"chi2:      {c2:.2f}")
-    print(f"ndof:      {ndof}")
-    print(f"chi2/ndof: {c2 / ndof:.2f}")
-    print(f"p-value:   {pval:.3f}")
+    print(f"chi2:      {result.chi2:.2f}")
+    print(f"ndof:      {result.ndof}")
+    print(f"chi2/ndof: {result.chi2 / result.ndof:.2f}")
+    print(f"p-value:   {result.pval:.3f}")
