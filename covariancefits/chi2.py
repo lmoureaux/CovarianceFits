@@ -191,18 +191,25 @@ def chi2scan():
     )
     parser.add_argument("data", help="Input data file")
     parser.add_argument("predictions", nargs="+", help="Input predictions")
+    parser.add_argument(
+        "--poi", nargs="+", default=None, help="Scanned parameter of interest"
+    )
     _add_common_arguments(parser)
     args = parser.parse_args()
 
     with open(args.data, "rb") as stream:
         x1 = pickle.load(stream)
 
-    print(f"file,chi2,ndof,chi2,pval")
-    for pred in args.predictions:
+    pois = [0] * len(args.predictions) if args.poi is None else args.poi
+    assert len(pois) == len(args.predictions)
+
+    print("file,poi,chi2,ndof,chi2,pval")
+
+    for pred, poi in zip(args.predictions, pois):
         with open(pred, "rb") as stream:
             x2 = pickle.load(stream)
 
         result = _chi2_with_args(x1, x2, args)
         print(
-            f"{pred},{result.chi2},{result.ndof},{result.chi2 / result.ndof},{result.pval}"
+            f"{pred},{poi},{result.chi2},{result.ndof},{result.chi2 / result.ndof},{result.pval}"
         )
