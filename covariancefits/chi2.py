@@ -78,6 +78,12 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         help="List of bin indices to consider",
     )
     parser.add_argument(
+        "--k-factor",
+        default=None,
+        type=float,
+        help="Applies a k-factor to the second argument. This does not affect the number of degrees of freedom.",
+    )
+    parser.add_argument(
         "--shape-only",
         default=False,
         action="store_true",
@@ -99,7 +105,7 @@ class Chi2Result:
     dx: Optional[np.ndarray] = None
     cov: Optional[np.ndarray] = None
     bins: Optional[list[int]] = None
-    kfactor: float = np.nan
+    k_factor: float = 1
 
 
 def _chi2_with_args(x1, x2, args) -> Chi2Result:
@@ -121,12 +127,15 @@ def _chi2_with_args(x1, x2, args) -> Chi2Result:
     )
     result.ndof = len(x1)
 
-    if args.shape_only:
+    if args.k_factor:
+        result.k_factor = args.k_factor
+    elif args.shape_only:
         # This approach works surprisingly well despite not taking uncs into account.
-        result.kfactor = np.sum(x1) / np.sum(x2)
-        x2 *= result.kfactor
-        cov2 *= result.kfactor**2
+        result.k_factor = np.sum(x1) / np.sum(x2)
         result.ndof -= 1
+
+    x2 *= result.k_factor
+    cov2 *= result.k_factor
 
     result.dx = x1 - x2
     result.cov = cov1 + cov2
@@ -168,7 +177,7 @@ def chi2tool():
     print(f"Calculating chi2 for {len(result.bins)} bins ({bins})")
 
     if args.shape_only:
-        print(f"Scaling {args.input[1]} by {result.kfactor:.3f}.")
+        print(f"Scaling {args.input[1]} by {result.k_factor:.3f}.")
 
     print()
     print(f"chi2:      {result.chi2:.2f}")
@@ -204,6 +213,7 @@ def chi2scan():
     assert len(pois) == len(args.predictions)
 
     print("file,poi,chi2,ndof,chi2,pval")
+    print("file,poi,chi2,ndof,chi2/ndof,pval")
 
     for pred, poi in zip(args.predictions, pois):
         with open(pred, "rb") as stream:
