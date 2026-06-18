@@ -84,6 +84,12 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         help="Applies a k-factor to the second argument. This does not affect the number of degrees of freedom.",
     )
     parser.add_argument(
+        "--profile-normalization",
+        default=None,
+        action="store_true",
+        help="Profiles the normalization parameter. That is, scales the second argument to minimize the chi2. This removes one degree of freedom.",
+    )
+    parser.add_argument(
         "--shape-only",
         default=False,
         action="store_true",
@@ -127,7 +133,28 @@ def _chi2_with_args(x1, x2, args) -> Chi2Result:
     )
     result.ndof = len(x1)
 
-    if args.k_factor:
+    if args.profile_normalization:
+        # FIXME remove duplication
+        def fun(k):
+            _x2 = x2 * k
+            _cov2 = cov2 * k * k
+
+            dx = x1 - _x2
+            cov = cov1 + _cov2
+            if args.naive:
+                cov = np.diag(np.diag(cov))  # Remove off-diagonal elements
+
+            try:
+                return chi2(dx, cov)
+            except np.linalg.LinAlgError:
+                return 9999
+
+        from scipy.optimize import minimize_scalar
+
+        res = minimize_scalar(fun)
+        result.k_factor = res.x
+        result.ndof -= 1
+    elif args.k_factor:
         result.k_factor = args.k_factor
     elif args.shape_only:
         # This approach works surprisingly well despite not taking uncs into account.
@@ -135,15 +162,19 @@ def _chi2_with_args(x1, x2, args) -> Chi2Result:
         result.ndof -= 1
 
     x2 *= result.k_factor
-    cov2 *= result.k_factor
+    cov2 *= result.k_factor * result.k_factor
 
     result.dx = x1 - x2
     result.cov = cov1 + cov2
     if args.naive:
         result.cov = np.diag(np.diag(result.cov))  # Remove off-diagonal elements
 
-    result.chi2 = chi2(result.dx, result.cov)
-    result.pval = stats.chi2.sf(result.chi2, result.ndof)
+    try:
+        result.chi2 = chi2(result.dx, result.cov)
+        result.pval = stats.chi2.sf(result.chi2, result.ndof)
+    except np.linalg.LinAlgError:
+        result.chi2 = np.nan
+        result.pval = np.nan
 
     return result
 
@@ -180,6 +211,7 @@ def chi2tool():
         print(f"Scaling {args.input[1]} by {result.k_factor:.3f}.")
 
     print()
+    print(f"k-factor:  {result.k_factor:.2f}")
     print(f"chi2:      {result.chi2:.2f}")
     print(f"ndof:      {result.ndof}")
     print(f"chi2/ndof: {result.chi2 / result.ndof:.2f}")
@@ -212,14 +244,18 @@ def chi2scan():
     pois = [0] * len(args.predictions) if args.poi is None else args.poi
     assert len(pois) == len(args.predictions)
 
-    print("file,poi,chi2,ndof,chi2,pval")
-    print("file,poi,chi2,ndof,chi2/ndof,pval")
+    print("file,poi,k,chi2,ndof,chi2/ndof,pval")
 
+    min_poi = None
+    min_chi2 = None
     for pred, poi in zip(args.predictions, pois):
         with open(pred, "rb") as stream:
             x2 = pickle.load(stream)
 
         result = _chi2_with_args(x1, x2, args)
+        if min_chi2 is None or result.chi2 < min_chi2:
+            min_poi = poi
+            min_chi2 = result.chi2
         print(
-            f"{pred},{poi},{result.chi2},{result.ndof},{result.chi2 / result.ndof},{result.pval}"
+            f"{pred},{poi},{result.k_factor},{result.chi2},{result.ndof},{result.chi2 / result.ndof},{result.pval}"
         )
