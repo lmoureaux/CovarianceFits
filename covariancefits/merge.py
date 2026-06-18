@@ -1,7 +1,8 @@
 import argparse
-import numpy as np
 import pickle
 import re
+
+import numpy as np
 import scipy.linalg
 
 
