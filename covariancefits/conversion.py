@@ -2,9 +2,11 @@ import argparse
 import itertools as it
 import pickle
 import sys
-import numpy as np
-import yaml
 from pathlib import Path
+
+import numpy as np
+import uproot as up
+import yaml
 
 
 def load_data(yaml_data):
@@ -339,7 +341,78 @@ def yoda2pkl():
                     rescale=args.rescale,
                     scales=args.scale_unc,
                     scales_mode=args.scale_unc_symmetrization,
+                    tmd=args.tmd_unc,
                 ),
             },
             stream,
         )
+
+
+def get_root_histogram_contents(
+    input_file, names, rescale=[1], suffix="", func="sumW"
+) -> np.ndarray:
+    """
+    Concatenates bin contents from a set of ROOT histograms.
+    """
+
+    if len(rescale) == 1:
+        rescale *= len(names)
+    elif len(rescale) != len(names):
+        raise ValueError(
+            f"Different number of histogram names ({len(names)}) and rescale factors ({len(rescale)})"
+        )
+
+    all_values = []
+    for name, scale in zip(names, rescale):
+        full_name = name + suffix
+        if not full_name in input_file:
+            raise ValueError(f"No {full_name} object in ROOT file")
+
+        hist = input_file[full_name]
+        if not "TH1" in str(type(hist)):
+            raise ValueError(
+                f"Unexpected object type for {full_name}: {type(hist).__name__} (expected TH1*)"
+            )
+
+        print(dir(hist))
+        all_values += [scale * hist.values()]
+
+    return np.array(all_values)
+
+
+def root2pkl():
+    """
+    Reads in histograms from a ROOT file.
+    """
+
+    parser = argparse.ArgumentParser(
+        description="Reads histogams from a ROOT file. Uncertainties are read from the histogram and considered uncorrelated.",
+    )
+    parser.add_argument("root", help="The input ROOT file")
+    parser.add_argument(
+        "names",
+        nargs="+",
+        help="Name of the histograms to load. Multiple histograms are concatenated.",
+    )
+    parser.add_argument("output", help="Location of the output file")
+    parser.add_argument(
+        "--rescale",
+        default=[1],
+        type=float,
+        nargs="+",
+        help="Multiply the cross sections by these factors (one number, or one per input histograms)",
+    )
+    args = parser.parse_args()
+
+    with up.open(args.root) as f:
+        with open(args.output, "wb") as stream:
+            pickle.dump(
+                {
+                    "bins": None,
+                    "data": get_root_histogram_contents(
+                        f, args.names, rescale=args.rescale
+                    ),
+                    "covs": {},
+                },
+                stream,
+            )
