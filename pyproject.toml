@@ -6,10 +6,12 @@ authors = ["Louis Moureaux"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.13"
+python = ">=3.10,<3.13"
 numpy = "^1.18.0"
 pyyaml = "^6.0.0"
 scipy = "^1.10.1"
+matplotlib = "^3.9.4"
+uproot = "^5.7.1"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -21,6 +23,7 @@ chi2scan = "covariancefits.chi2:chi2scan"
 merge-histograms = "covariancefits.merge:mergetool"
 data2pkl = "covariancefits.conversion:data2pkl"
 lhcb2pkl = "covariancefits.conversion:lhcb2pkl"
+root2pkl = "covariancefits.conversion:root2pkl"
 yoda2pkl = "covariancefits.conversion:yoda2pkl"
 
 [build-system]
