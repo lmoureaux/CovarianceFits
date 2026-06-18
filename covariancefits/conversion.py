@@ -208,7 +208,7 @@ def get_histogram_contents(
     objects, names, rescale=[1], suffix="", func="sumW"
 ) -> np.ndarray:
     """
-    Concatenates bin contents from a set of histograms.
+    Concatenates bin contents from a set of YODA histograms.
     """
 
     import yoda
@@ -237,7 +237,9 @@ def get_histogram_contents(
     return np.array(all_values)
 
 
-def get_mc_errors(objects, base_names, rescale=[1], scales=False, scales_mode="max"):
+def get_mc_errors(
+    objects, base_names, rescale=[1], scales=False, scales_mode="max", tmd=False
+):
     """
     Loads the muR and muF scale uncertainties from YODA objects for the given
     histogram. Adds the MC stat uncertainties. Returns them as a dict of covariance matrices.
@@ -271,6 +273,33 @@ def get_mc_errors(objects, base_names, rescale=[1], scales=False, scales_mode="m
             raise ValueError(f"Unsupported scales mode {scales_mode}")
 
         errors["MC_scale"] = np.outer(unc, unc)
+
+    if tmd:
+        variations = []
+        for index in range(102201, 102236 + 1):
+            suffix = f"[TMD{index}]"
+            variations.append(
+                get_histogram_contents(
+                    objects, [n + suffix for n in base_names], rescale=rescale
+                )
+            )
+
+        # PB TMD uncertainties are:
+        #
+        # mass charm up and down, mass bottom up and down, starting scale up and
+        # down etc...
+        # Also, each of the 14th fit parameters are varied up and down
+        #
+        # We symmetrize up and down and add one uncertainty per index.
+        variations = np.reshape(variations, (-1, 2, np.shape(variations)[-1]))
+
+        up = np.max(variations, axis=1) - central
+        down = np.min(variations, axis=1) - central
+
+        unc = np.mean(np.abs([up, down]), axis=0)  # Mean or max?
+        for i, v in enumerate(unc):
+            print(v / central)
+            errors[f"TMD{i}"] = np.outer(v, v)
 
     return errors
 
@@ -322,6 +351,12 @@ def yoda2pkl():
         default="max",
         choices=["max", "mean"],
         help="How to symmetrize the up and down variations of scale uncertainties",
+    )
+    parser.add_argument(
+        "--tmd-unc",
+        default=False,
+        action="store_true",
+        help="Use PB TMD uncertainties",
     )
     args = parser.parse_args()
 
